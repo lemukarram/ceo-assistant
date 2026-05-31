@@ -9,3 +9,8 @@
         admin $2b$12$09piaprkzL5l5eqQp3nVsOIBUaCyq18raTYtPHy6e2WdnpM6AmQiy
     }
 }
+
+# WhatsApp Webhook (Publicly accessible but protected by Bridge Logic)
+:8000 {
+    reverse_proxy waha-bridge:8000
+}
