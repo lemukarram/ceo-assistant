@@ -1,0 +1,38 @@
+/* Modern UI Theme for Hermes */
+:root {
+    --hermes-primary: #6366f1; /* Modern Indigo */
+    --hermes-bg: #0f172a; /* Slate 900 */
+    --hermes-card: #1e293b; /* Slate 800 */
+    --hermes-text: #f8fafc;
+}
+
+body {
+    background-color: var(--hermes-bg) !important;
+    color: var(--hermes-text) !important;
+    font-family: 'Inter', -apple-system, sans-serif !important;
+}
+
+/* Rounded corners for cards */
+.card, .panel, .dashboard-item {
+    border-radius: 12px !important;
+    border: 1px solid #334155 !important;
+    background-color: var(--hermes-card) !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+}
+
+/* Modernizing buttons */
+button {
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important;
+}
+
+/* Sidebar styling */
+.sidebar {
+    background-color: #020617 !important;
+    border-right: 1px solid #1e293b !important;
+}

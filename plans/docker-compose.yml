@@ -18,7 +18,7 @@ services:
       - HERMES_DASHBOARD_TUI=1 # Enables the Chat/TUI tab in the dashboard
       
       # Model Persona and Instructions
-      - HERMES_SYSTEM_INSTRUCTIONS_PATH=/opt/data/ceo_assistant_instructions.md
+      - HERMES_SYSTEM_INSTRUCTIONS_PATH=/opt/data/ceo_instructions.md
       
       # Secure the API Gateway
       - API_SERVER_ENABLED=true
@@ -33,8 +33,8 @@ services:
       # - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     volumes:
       - hermes_data:/opt/data
-      - ./modern-ui.css:/opt/hermes/hermes_cli/web_dist/assets/index-C3bBVUwj.css:ro
-      - ./ceo_assistant_instructions.md:/opt/data/ceo_assistant_instructions.md:ro
+      - ./modern-ui.css:/opt/hermes/custom-style.css:ro
+      - ./ceo_assistant_instructions.md:/opt/data/ceo_instructions.md:ro
 
 volumes:
   hermes_data:
