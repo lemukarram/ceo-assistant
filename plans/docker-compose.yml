@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  hermes-agent:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes_core
+    command: gateway run
+    restart: unless-stopped
+    ports:
+      - "9119:9119" # Web UI Dashboard
+      - "8642:8642" # Gateway API
+    environment:
+      # Expose the built-in admin dashboard
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_HOST=0.0.0.0
+      - HERMES_DASHBOARD_PORT=9119
+      - HERMES_DASHBOARD_INSECURE=true
+      - HERMES_DASHBOARD_TUI=1 # Enables the Chat/TUI tab in the dashboard
+      
+      # Model Persona and Instructions
+      - HERMES_SYSTEM_INSTRUCTIONS_PATH=/opt/data/ceo_assistant_instructions.md
+      
+      # Secure the API Gateway
+      - API_SERVER_ENABLED=true
+      - API_SERVER_HOST=0.0.0.0
+      - API_SERVER_KEY=${HERMES_API_KEY} # Set this in Dokploy env vars (e.g., a strong random string)
+      
+      # Model API Keys
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Optional: Telegram Integration
+      # - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    volumes:
+      - hermes_data:/opt/data
+      - ./modern-ui.css:/opt/hermes/hermes_cli/web_dist/assets/index-C3bBVUwj.css:ro
+      - ./ceo_assistant_instructions.md:/opt/data/ceo_assistant_instructions.md:ro
+
+volumes:
+  hermes_data:
+    driver: local
