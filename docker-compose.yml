@@ -37,15 +37,14 @@ services:
       - ./rebrand.sh:/etc/cont-init.d/00-rebrand:ro
       - ./SOUL.md:/opt/data/SOUL.md:ro
 
-  # WhatsApp Gateway (WAHA)
+  # WhatsApp Gateway (WAHA - Core Version)
   waha:
-    image: devlikepro/waha
+    image: devlike/waha:latest
     container_name: loops_whatsapp_gw
     restart: unless-stopped
     environment:
       - WAHA_WH_URL=http://waha-bridge:8000/webhook/whatsapp
       - WAHA_WH_EVENTS=message.upsert
-    # Dashboard for WAHA can be exposed if needed, but we mostly use API
     # ports:
     #   - "3000:3000"
 
