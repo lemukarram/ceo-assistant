@@ -1,0 +1,11 @@
+{
+    admin off
+}
+
+:9119 {
+    reverse_proxy hermes_core:9119
+    
+    basicauth / {
+        admin $2b$12$09piaprkzL5l5eqQp3nVsOIBUaCyq18raTYtPHy6e2WdnpM6AmQiy
+    }
+}
