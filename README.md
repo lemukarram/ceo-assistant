@@ -37,3 +37,11 @@ To retrieve the assistant's public key for Hostinger/Server authorization:
 ```bash
 docker exec hermes_core cat /opt/data/hermes_key.pub
 ```
+
+
+I've hardened the TRUSTED_NUMBERS check and added
+     secure logging. Only your approved phones can trigger the assistant.
+
+     Port 9119: For the Admin Dashboard.
+       * Port 8000: For the WhatsApp Webhook (WAHA will point its webhooks
+         here).
