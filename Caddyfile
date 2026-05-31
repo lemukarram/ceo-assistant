@@ -1,16 +1,25 @@
 {
     admin off
 }
-
+# Main Dashboard
 :9119 {
     reverse_proxy hermes_core:9119
-    
-    basicauth / {
+
+    basic_auth / {
         admin $2b$12$09piaprkzL5l5eqQp3nVsOIBUaCyq18raTYtPHy6e2WdnpM6AmQiy
     }
 }
 
-# WhatsApp Webhook (Publicly accessible but protected by Bridge Logic)
+# WAHA Dashboard (Securely exposed)
+:3000 {
+    reverse_proxy waha:3000
+
+    basic_auth / {
+        admin $2b$12$09piaprkzL5l5eqQp3nVsOIBUaCyq18raTYtPHy6e2WdnpM6AmQiy
+    }
+}
+
+# WhatsApp Webhook
 :8000 {
     reverse_proxy waha-bridge:8000
 }

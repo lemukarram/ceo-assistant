@@ -6,6 +6,7 @@ services:
     ports:
       - "9119:9119" # Dashboard
       - "8000:8000" # WhatsApp Webhook
+      - "3000:3000" # WAHA Dashboard
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
