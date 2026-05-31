@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: loops_auth_proxy
+    restart: unless-stopped
+    ports:
+      - "9119:9119" # Exposed secure port
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - hermes-agent
+
+  hermes-agent:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes_core
+    command: gateway run
+    restart: unless-stopped
+    ports:
+      - "8642:8642" # Gateway API (internal or API use)
+    environment:
+      # Expose the built-in admin dashboard
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_HOST=0.0.0.0
+      - HERMES_DASHBOARD_PORT=9119
+      - HERMES_DASHBOARD_INSECURE=true
+      - HERMES_DASHBOARD_TUI=1 # Enables the Chat/TUI tab in the dashboard
+      
+      # Model Persona and Instructions
+      - HERMES_SYSTEM_INSTRUCTIONS_PATH=/opt/data/SOUL.md
+      
+      # Secure the API Gateway
+      - API_SERVER_ENABLED=true
+      - API_SERVER_HOST=0.0.0.0
+      - API_SERVER_KEY=${HERMES_API_KEY} # Set this in Dokploy env vars (e.g., a strong random string)
+      
+      # Model API Keys
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Optional: Telegram Integration
+      # - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    volumes:
+      - hermes_data:/opt/data
+      - ./modern-ui.css:/opt/hermes/custom-style.css:ro
+      - ./rebrand.sh:/etc/cont-init.d/00-rebrand:ro
+      - ./SOUL.md:/opt/data/SOUL.md:ro
+
+volumes:
+  hermes_data:
+    driver: local
