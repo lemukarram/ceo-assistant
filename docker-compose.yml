@@ -41,6 +41,7 @@ services:
     environment:
       - WAHA_WH_URL=http://waha-bridge:8000/webhook/whatsapp
       - WAHA_WH_EVENTS=message.upsert
+      - PORT=3000
 
   # FastAPI Bridge
   waha-bridge:
@@ -52,6 +53,7 @@ services:
       - HERMES_API_URL=http://hermes_core:8642/api/chat
       - HERMES_API_KEY=${HERMES_API_KEY}
       - WAHA_API_URL=http://waha:3000
+      - DEBUG_MODE=true
     depends_on:
       - hermes-agent
       - waha

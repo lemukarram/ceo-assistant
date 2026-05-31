@@ -1,25 +1,25 @@
 {
     admin off
 }
-# Main Dashboard
-:9119 {
+# Main Dashboard (Unique Port)
+:9120 {
     reverse_proxy hermes_core:9119
-
+    
     basic_auth / {
         admin $2b$12$09piaprkzL5l5eqQp3nVsOIBUaCyq18raTYtPHy6e2WdnpM6AmQiy
     }
 }
 
-# WAHA Dashboard (Securely exposed)
-:3000 {
+# WAHA Dashboard (Unique Port)
+:3005 {
     reverse_proxy waha:3000
-
+    
     basic_auth / {
         admin $2b$12$09piaprkzL5l5eqQp3nVsOIBUaCyq18raTYtPHy6e2WdnpM6AmQiy
     }
 }
 
-# WhatsApp Webhook
-:8000 {
+# WhatsApp Webhook (Internal)
+:8005 {
     reverse_proxy waha-bridge:8000
 }
