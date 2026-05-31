@@ -1,20 +1,14 @@
 services:
-  caddy:
-    image: caddy:2-alpine
-    container_name: loops_auth_proxy
-    restart: unless-stopped
-    # Dokploy will manage external access to these ports via its Domain settings
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-    depends_on:
-      - hermes-agent
-      - waha-bridge
-
+  # 1. Hermes Assistant Core
   hermes-agent:
     image: nousresearch/hermes-agent:latest
     container_name: hermes_core
     command: gateway run
     restart: unless-stopped
+    # No internal 'Caddy' needed - Dokploy handles SSL and domains
+    ports:
+      - "9119:9119" # Main UI
+      - "8642:8642" # API
     environment:
       - HERMES_DASHBOARD=1
       - HERMES_DASHBOARD_HOST=0.0.0.0
@@ -33,21 +27,24 @@ services:
       - ./rebrand.sh:/etc/cont-init.d/00-rebrand:ro
       - ./SOUL.md:/opt/data/SOUL.md:ro
 
-  # WhatsApp Gateway (WAHA)
+  # 2. WhatsApp Gateway (WAHA)
   waha:
     image: devlikeapro/waha:latest
     container_name: loops_whatsapp_gw
     restart: unless-stopped
+    ports:
+      - "3000:3000" # WAHA Dashboard
     environment:
       - WAHA_WH_URL=http://waha-bridge:8000/webhook/whatsapp
       - WAHA_WH_EVENTS=message.upsert
       - PORT=3000
 
-  # FastAPI Bridge
+  # 3. FastAPI Bridge
   waha-bridge:
     build: .
     container_name: loops_waha_bridge
     restart: unless-stopped
+    # Port 8000 remains internal for webhooks
     environment:
       - TRUSTED_NUMBERS=${TRUSTED_NUMBERS}
       - HERMES_API_URL=http://hermes_core:8642/api/chat
