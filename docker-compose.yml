@@ -51,7 +51,7 @@ services:
     restart: unless-stopped
     # Port 8000 remains internal for webhooks
     environment:
-      - TRUSTED_NUMBERS=${TRUSTED_NUMBERS}
+      - MASTER_CEO=${MASTER_CEO}
       - HERMES_API_URL=http://hermes_core:8642/v1/chat/completions
       - HERMES_API_KEY=${HERMES_API_KEY}
       - WAHA_API_URL=http://waha:3000

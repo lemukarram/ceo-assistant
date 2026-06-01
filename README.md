@@ -24,6 +24,15 @@ This repository contains the production deployment and configuration files for *
     *   **User:** `admin`
     *   **Password:** `LoopsAdmin2026`
 
+## 🛡️ Admin Commands (WhatsApp)
+If your number is set as `MASTER_CEO` in the environment variables, you can manage access to the assistant directly from WhatsApp:
+
+- `/add <number>` : Grants a new number access (e.g., `/add 923124277939`).
+- `/remove <number>` : Revokes access from a number.
+- `/list` : Shows all currently trusted numbers.
+
+*Note: Use international format without the '+' (e.g., 1234567890).*
+
 ## 🧠 CEO Assistant Persona
 The assistant's "Soul" (System Prompt) is located at `plans/SOUL.md`. You can modify this file to change how LOOPS CA behaves or onboard new executive rules.
 
