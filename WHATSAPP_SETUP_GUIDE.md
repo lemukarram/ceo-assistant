@@ -7,7 +7,7 @@ This guide will walk you through connecting your WhatsApp account to LOOPS CA.
 ## 🔐 1. Accessing the WAHA Dashboard
 I have configured the system to expose the WAHA dashboard through our secure proxy.
 
-*   **URL:** `http://[YOUR_SERVER_IP]:3000`
+*   **URL:** `http://[YOUR_SERVER_IP]:3001`
 *   **Username:** `admin`
 *   **Password:** `LoopsAdmin2026`
 *(Note: I've added a security layer so you use the same credentials as the main dashboard).*
