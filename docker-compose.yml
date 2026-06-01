@@ -52,7 +52,7 @@ services:
     # Port 8000 remains internal for webhooks
     environment:
       - TRUSTED_NUMBERS=${TRUSTED_NUMBERS}
-      - HERMES_API_URL=http://hermes_core:8642/api/chat
+      - HERMES_API_URL=http://hermes_core:8642/v1/chat/completions
       - HERMES_API_KEY=${HERMES_API_KEY}
       - WAHA_API_URL=http://waha:3000
       - WAHA_API_KEY=${WAHA_API_KEY}
