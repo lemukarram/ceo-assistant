@@ -40,6 +40,7 @@ services:
       - PORT=3000
       - WAHA_DASHBOARD_USERNAME=admin
       - WAHA_DASHBOARD_PASSWORD=LoopsAdmin2026
+      - WHATSAPP_API_KEY=${WAHA_API_KEY}
 
   # 3. FastAPI Bridge
   waha-bridge:
@@ -52,6 +53,7 @@ services:
       - HERMES_API_URL=http://hermes_core:8642/api/chat
       - HERMES_API_KEY=${HERMES_API_KEY}
       - WAHA_API_URL=http://waha:3000
+      - WAHA_API_KEY=${WAHA_API_KEY}
       - DEBUG_MODE=true
     depends_on:
       - hermes-agent

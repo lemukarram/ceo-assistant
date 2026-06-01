@@ -134,9 +134,13 @@ async def send_to_whatsapp(chat_id: str, text: str):
                 "text": text,
                 "session": "default"
             }
-            res = await client.post(url, json=payload)
+            headers = {}
+            if WAHA_API_KEY:
+                headers["X-Api-Key"] = WAHA_API_KEY
+
+            res = await client.post(url, json=payload, headers=headers)
             if res.status_code != 201:
-                logger.error(f"WAHA Delivery Failed: {res.text}")
+                logger.error(f"WAHA Delivery Failed ({res.status_code}): {res.text}")
     except Exception as e:
         logger.error(f"WhatsApp Delivery Crash: {str(e)}")
 
@@ -144,3 +148,4 @@ if __name__ == "__main__":
     import uvicorn
     # Use 100% stable production settings
     uvicorn.run(app, host="0.0.0.0", port=8000, workers=4)
+t=8000, workers=4)
