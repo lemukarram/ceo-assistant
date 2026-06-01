@@ -15,6 +15,8 @@ app = FastAPI(title="WhatsApp Only Bridge")
 TRUSTED_NUMBERS = os.getenv("TRUSTED_NUMBERS", "").split(",")
 WAHA_API_URL = os.getenv("WAHA_API_URL", "http://waha:3000")
 WAHA_API_KEY = os.getenv("WAHA_API_KEY", "")
+HERMES_API_URL = os.getenv("HERMES_API_URL", "http://hermes_core:8642/v1/chat/completions")
+HERMES_API_KEY = os.getenv("HERMES_API_KEY", "")
 
 # In-memory cache to prevent duplicate processing of the same message ID
 processed_message_ids = set()
@@ -25,7 +27,6 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         data = await request.json()
         
         # 1. STRICT: Only process the primary 'message' event.
-        # Ignore 'message.any', 'message.ack', 'message.upsert', etc.
         if data.get("event") != "message":
             return {"status": "ignored_non_message_event"}
 
@@ -38,10 +39,8 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         # 3. STRICT: Deduplication to prevent 4x replies
         msg_id = payload.get("id")
         if msg_id:
-            # Clear cache occasionally to prevent memory leak
             if len(processed_message_ids) > 1000:
                 processed_message_ids.clear()
-                
             if msg_id in processed_message_ids:
                 return {"status": "ignored_duplicate"}
             processed_message_ids.add(msg_id)
@@ -54,9 +53,12 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             logger.warning(f"SECURITY ALERT: Blocked untrusted number {from_number}")
             return {"status": "unauthorized"}
 
-        # Passed all checks! Trigger the background reply.
-        logger.info(f"Valid message received from {from_number}. Sending assistant reply...")
-        background_tasks.add_task(send_assistant_reply, from_chat)
+        # 5. Extract user message
+        body = payload.get("body", "")
+
+        # Trigger the background reply logic
+        logger.info(f"Valid message from {from_number}. Routing to Hermes...")
+        background_tasks.add_task(process_and_reply, from_chat, body)
         
         return {"status": "success"}
 
@@ -64,29 +66,51 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         logger.error(f"Webhook Error: {str(e)}")
         return {"status": "error"}
 
-async def send_assistant_reply(chat_id: str):
-    """Sends the requested hardcoded reply directly to WhatsApp."""
+async def process_and_reply(chat_id: str, user_message: str):
+    """Passes the message to Hermes and returns the reply to WhatsApp."""
     try:
         async with httpx.AsyncClient() as client:
-            url = f"{WAHA_API_URL}/api/sendText"
-            payload = {
+            # --- Phase 1: Call Hermes ---
+            hermes_payload = {
+                "model": "hermes-agent",
+                "messages": [{"role": "user", "content": user_message}],
+                "stream": False
+            }
+            hermes_headers = {
+                "Authorization": f"Bearer {HERMES_API_KEY}",
+                "Content-Type": "application/json"
+            }
+
+            logger.info(f"Calling Hermes API at {HERMES_API_URL}")
+            h_res = await client.post(HERMES_API_URL, json=hermes_payload, headers=hermes_headers, timeout=120.0)
+            
+            if h_res.status_code == 200:
+                h_data = h_res.json()
+                reply_text = h_data.get("choices", [{}])[0].get("message", {}).get("content", "I processed your request but had no words to reply.")
+            else:
+                logger.error(f"Hermes Error: {h_res.status_code} - {h_res.text}")
+                reply_text = f"⚠️ Sorry, my core logic is having trouble (Error {h_res.status_code})."
+
+            # --- Phase 2: Reply to WhatsApp ---
+            waha_url = f"{WAHA_API_URL}/api/sendText"
+            waha_payload = {
                 "chatId": chat_id,
-                "text": "Hi I am your assistant.",
+                "text": reply_text,
                 "session": "default"
             }
-            headers = {"Content-Type": "application/json"}
+            waha_headers = {"Content-Type": "application/json"}
             if WAHA_API_KEY:
-                headers["X-Api-Key"] = WAHA_API_KEY
+                waha_headers["X-Api-Key"] = WAHA_API_KEY
 
-            res = await client.post(url, json=payload, headers=headers)
+            w_res = await client.post(waha_url, json=waha_payload, headers=waha_headers)
             
-            if res.status_code == 201:
-                logger.info(f"✅ Reply successfully delivered to {chat_id}")
+            if w_res.status_code == 201:
+                logger.info(f"✅ Reply delivered to {chat_id}")
             else:
-                logger.error(f"❌ Failed to deliver reply: {res.status_code} - {res.text}")
+                logger.error(f"❌ WAHA delivery failed: {w_res.status_code} - {w_res.text}")
                 
     except Exception as e:
-        logger.error(f"❌ Delivery Crash: {str(e)}")
+        logger.error(f"❌ Processing Crash: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
