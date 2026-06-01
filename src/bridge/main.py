@@ -3,6 +3,7 @@ import logging
 import base64
 import re
 import mimetypes
+import io
 from fastapi import FastAPI, Request, BackgroundTasks
 from dotenv import load_dotenv
 import httpx
@@ -13,7 +14,7 @@ logger = logging.getLogger("WAHA-BRIDGE")
 
 load_dotenv()
 
-app = FastAPI(title="WhatsApp Media Vision Bridge")
+app = FastAPI(title="WhatsApp Media & Voice Vision Bridge")
 
 # --- Configuration ---
 TRUSTED_NUMBERS = os.getenv("TRUSTED_NUMBERS", "").split(",")
@@ -21,6 +22,7 @@ WAHA_API_URL = os.getenv("WAHA_API_URL", "http://waha:3000")
 WAHA_API_KEY = os.getenv("WAHA_API_KEY", "")
 HERMES_API_URL = os.getenv("HERMES_API_URL", "http://hermes_core:8642/v1/chat/completions")
 HERMES_API_KEY = os.getenv("HERMES_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # In-memory cache to prevent duplicate processing
 processed_message_ids = set()
@@ -61,9 +63,13 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         body = payload.get("body", "")
         has_media = payload.get("hasMedia", False)
         media_info = payload.get("media") if has_media else None
+        
+        # Detect if it's a voice message (WAHA often marks these as 'ptt' or via mimetype)
+        msg_type = payload.get("type", "chat")
+        is_voice = msg_type in ["ptt", "audio"]
 
-        logger.info(f"Message from {from_number} (Media: {has_media}). Routing to Hermes...")
-        background_tasks.add_task(process_and_reply, from_chat, body, media_info)
+        logger.info(f"Message from {from_number} (Media: {has_media}, Voice: {is_voice}). Routing...")
+        background_tasks.add_task(process_and_reply, from_chat, body, media_info, is_voice)
         
         return {"status": "success"}
 
@@ -85,46 +91,75 @@ async def download_media(media_url: str):
             logger.error(f"Failed to download media: {res.status_code}")
             return None
 
-async def process_and_reply(chat_id: str, user_message: str, media_info: dict = None):
+async def transcribe_audio(audio_data: bytes, mimetype: str):
+    """Transcribes audio using OpenAI Whisper."""
+    if not OPENAI_API_KEY:
+        logger.error("OPENAI_API_KEY not set. Cannot transcribe voice.")
+        return "[CEO sent a voice message, but transcription is disabled.]"
+    
+    try:
+        # Determine extension from mimetype
+        ext = mimetypes.guess_extension(mimetype) or ".ogg"
+        filename = f"voice{ext}"
+        
+        async with httpx.AsyncClient() as client:
+            files = {'file': (filename, io.BytesIO(audio_data), mimetype)}
+            data = {'model': 'whisper-1'}
+            headers = {'Authorization': f'Bearer {OPENAI_API_KEY}'}
+            
+            res = await client.post(
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers=headers,
+                files=files,
+                data=data,
+                timeout=60.0
+            )
+            
+            if res.status_code == 200:
+                return res.json().get("text", "")
+            else:
+                logger.error(f"Whisper Error: {res.status_code} - {res.text}")
+                return "[Error transcribing voice message]"
+    except Exception as e:
+        logger.error(f"Transcription Crash: {str(e)}")
+        return "[Error during voice processing]"
+
+async def process_and_reply(chat_id: str, user_message: str, media_info: dict = None, is_voice: bool = False):
     """Handles multi-modal input and routes to Hermes."""
     try:
         async with httpx.AsyncClient() as client:
-            hermes_messages = []
-            
-            # --- Phase 1: Prepare Inbound Payload ---
             content = []
-            if user_message:
-                content.append({"type": "text", "text": user_message})
             
+            # --- Phase 1: Handle Media (Images, Docs, Voice) ---
             if media_info:
-                media_url = media_info.get("url")
+                media_url = media_info.get("url").replace("localhost:3000", "waha:3000")
                 mimetype = media_info.get("mimetype", "")
-                
-                # Use internal network URL if needed (WAHA might return localhost)
-                media_url = media_url.replace("localhost:3000", "waha:3000")
-                
                 media_data = await download_media(media_url)
+                
                 if media_data:
-                    if mimetype.startswith("image/"):
-                        # Image Vision path
+                    if is_voice:
+                        logger.info("Processing voice message...")
+                        transcription = await transcribe_audio(media_data, mimetype)
+                        user_message = f"{user_message} {transcription}".strip()
+                    elif mimetype.startswith("image/"):
                         base64_image = base64.b64encode(media_data).decode('utf-8')
                         content.append({
                             "type": "image_url",
                             "image_url": {"url": f"data:{mimetype};base64,{base64_image}"}
                         })
                     else:
-                        # Document path (Save to shared volume)
-                        filename = media_info.get("filename") or f"incoming_{int(httpx.AsyncClient()._transport._pool.time())}"
+                        # Document path
+                        filename = media_info.get("filename") or f"incoming_{int(client._transport._pool.time())}"
                         file_path = os.path.join(MEDIA_DIR, filename)
                         with open(file_path, "wb") as f:
                             f.write(media_data)
-                        
-                        doc_notice = f"\n[CEO has uploaded a document: {file_path}. Use your 'read_file' tool to analyze it.]"
-                        if content and content[0]["type"] == "text":
-                            content[0]["text"] += doc_notice
-                        else:
-                            content.append({"type": "text", "text": doc_notice})
+                        user_message = f"{user_message}\n[CEO has uploaded a document: {file_path}. Use your 'read_file' tool to analyze it.]".strip()
 
+            # Add final text content
+            if user_message:
+                content.append({"type": "text", "text": user_message})
+
+            # --- Phase 2: Call Hermes AI ---
             hermes_payload = {
                 "model": "hermes-agent",
                 "messages": [{"role": "user", "content": content}],
@@ -145,15 +180,10 @@ async def process_and_reply(chat_id: str, user_message: str, media_info: dict = 
                 logger.error(f"Hermes Error: {h_res.status_code}")
                 reply_text = f"⚠️ Core logic trouble (Error {h_res.status_code})."
 
-            # --- Phase 2: Detect Outbound Media in Reply ---
-            # Look for file paths starting with /opt/data
-            file_paths = re.findall(r'(/opt/data/[^\s,]+\.[a-zA-Z0-9]+)', reply_text)
-            
             # --- Phase 3: Send back to WhatsApp ---
-            # Send the text reply first
+            file_paths = re.findall(r'(/opt/data/[^\s,]+\.[a-zA-Z0-9]+)', reply_text)
             await send_to_whatsapp(client, chat_id, "text", {"text": reply_text})
             
-            # Send any discovered files
             for path in file_paths:
                 if os.path.exists(path):
                     mime, _ = mimetypes.guess_type(path)
@@ -173,7 +203,6 @@ async def send_to_whatsapp(client, chat_id: str, msg_type: str, data: dict):
             payload["text"] = data["text"]
         elif msg_type == "image":
             url = f"{WAHA_API_URL}/api/sendImage"
-            # WAHA can send files via local path if configured, or we can send base64
             with open(data["path"], "rb") as f:
                 payload["file"] = f"data:{mimetypes.guess_type(data['path'])[0]};base64," + base64.b64encode(f.read()).decode('utf-8')
         elif msg_type == "document":
