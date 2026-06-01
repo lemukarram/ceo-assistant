@@ -38,6 +38,8 @@ services:
       - WAHA_WH_URL=http://waha-bridge:8000/webhook/whatsapp
       - WAHA_WH_EVENTS=message.upsert
       - PORT=3000
+      - WAHA_DASHBOARD_USERNAME=admin
+      - WAHA_DASHBOARD_PASSWORD=LoopsAdmin2026
 
   # 3. FastAPI Bridge
   waha-bridge:
