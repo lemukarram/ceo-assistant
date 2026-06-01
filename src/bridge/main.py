@@ -24,9 +24,10 @@ if DEBUG_MODE:
     logger.debug("DEBUG MODE ENABLED")
 
 TRUSTED_NUMBERS = os.getenv("TRUSTED_NUMBERS", "").split(",")
-HERMES_API_URL = os.getenv("HERMES_API_URL", "http://hermes_core:8642/api/chat")
+HERMES_API_URL = os.getenv("HERMES_API_URL", "http://hermes_core:8642/v1/chat/completions")
 HERMES_API_KEY = os.getenv("HERMES_API_KEY")
 WAHA_API_URL = os.getenv("WAHA_API_URL", "http://waha:3000")
+WAHA_API_KEY = os.getenv("WAHA_API_KEY", "")
 
 # 100% Security Check: Validate Configuration
 if not HERMES_API_KEY or not TRUSTED_NUMBERS:
@@ -50,7 +51,8 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             logger.debug(f"RAW WEBHOOK DATA: {json.dumps(data)}")
         
         # Filter for valid message events
-        if data.get("event") not in ["message", "message.upsert", "message.any"]:
+        # We only process 'message' to avoid duplicates from 'message.any' or 'message.upsert'
+        if data.get("event") != "message":
             return {"status": "ignored_event"}
 
         payload = data.get("payload", {})
@@ -67,6 +69,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         body = payload.get("body", "")
         
         logger.info(f"CEO REQUEST ({msg_type}) from {from_number}")
+        logger.info(f"Message from trusted number {from_number}: {body}")
 
         # Handle multi-modal input (placeholder for advanced media logic)
         # For now, we pass the text. Images/Files will require WAHA's file download API.
@@ -94,30 +97,29 @@ async def communicate_with_hermes(chat_id: str, message: str, msg_type: str, raw
         try:
             logger.info(f"Routing to Hermes: {message[:50]}...")
             
-            # Prepare Hermes Payload
+            # Prepare Hermes Payload (OpenAI Compatible)
             hermes_payload = {
-                "message": message,
-                "session_id": f"whatsapp_{from_number}",
-                "stream": False
+                "model": "hermes-agent", # or the model configured in UI
+                "messages": [{"role": "user", "content": message}],
+                "stream": False,
+                # In OpenAI, session logic is usually handled by passing history,
+                # but if Hermes accepts custom metadata, we can add it:
+                "metadata": {"session_id": f"whatsapp_{from_number}"}
             }
-
-            # If it's an image, we would ideally add it to the message context
-            # if msg_type == "image":
-            #    hermes_payload["attachments"] = [...]
 
             response = await client.post(
                 HERMES_API_URL,
-                headers={"X-API-Key": HERMES_API_KEY},
+                headers={
+                    "Authorization": f"Bearer {HERMES_API_KEY}",
+                    "Content-Type": "application/json"
+                },
                 json=hermes_payload,
                 timeout=120.0 # High timeout for complex CEO tasks
             )
 
             if response.status_code == 200:
                 hermes_data = response.json()
-                reply_text = hermes_data.get("response", "✅ Task completed, CEO.")
-                
-                # Check if Hermes produced a file/image as output
-                # (Hermes tools might save files to /opt/data)
+                reply_text = hermes_data.get("choices", [{}])[0].get("message", {}).get("content", "✅ Task completed, CEO.")
             else:
                 logger.error(f"Hermes Logic Error ({response.status_code}): {response.text}")
                 reply_text = f"⚠️ CEO, my core logic responded with an error ({response.status_code}). I am investigating."
@@ -156,4 +158,3 @@ if __name__ == "__main__":
     import uvicorn
     # Use 100% stable production settings
     uvicorn.run(app, host="0.0.0.0", port=8000, workers=4)
-t=8000, workers=4)
