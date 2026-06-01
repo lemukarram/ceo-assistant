@@ -33,7 +33,7 @@ services:
     container_name: loops_whatsapp_gw
     restart: unless-stopped
     ports:
-      - "3001:3000" # WAHA Dashboard
+      - "3007:3000" # WAHA Dashboard
     environment:
       - WAHA_WH_URL=http://waha-bridge:8000/webhook/whatsapp
       - WAHA_WH_EVENTS=message.upsert
