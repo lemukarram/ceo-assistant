@@ -35,8 +35,8 @@ services:
     ports:
       - "3007:3000" # WAHA Dashboard
     environment:
-      - WAHA_WH_URL=http://waha-bridge:8000/webhook/whatsapp
-      - WAHA_WH_EVENTS=message.upsert
+      - WHATSAPP_HOOK_URL=http://waha-bridge:8000/webhook/whatsapp
+      - WHATSAPP_HOOK_EVENTS=message.upsert
       - PORT=3000
       - WAHA_DASHBOARD_USERNAME=admin
       - WAHA_DASHBOARD_PASSWORD=LoopsAdmin2026
