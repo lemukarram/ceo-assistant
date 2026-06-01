@@ -36,7 +36,7 @@ services:
       - "3007:3000" # WAHA Dashboard
     environment:
       - WHATSAPP_HOOK_URL=http://waha-bridge:8000/webhook/whatsapp
-      - WHATSAPP_HOOK_EVENTS=message
+      - WHATSAPP_HOOK_EVENTS=*
       - PORT=3000
       - WAHA_LOG_LEVEL=trace
       - WAHA_LOG_FORMAT=JSON
