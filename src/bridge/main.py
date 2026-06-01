@@ -46,8 +46,11 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     try:
         data = await request.json()
         
+        if DEBUG_MODE:
+            logger.debug(f"RAW WEBHOOK DATA: {json.dumps(data)}")
+        
         # Filter for valid message events
-        if data.get("event") not in ["message.upsert", "message"]:
+        if data.get("event") not in ["message", "message.upsert", "message.any"]:
             return {"status": "ignored_event"}
 
         payload = data.get("payload", {})
