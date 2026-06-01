@@ -18,6 +18,11 @@ load_dotenv()
 app = FastAPI(title="LOOPS CA Executive Bridge")
 
 # --- Configuration & Security ---
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+if DEBUG_MODE:
+    logger.setLevel(logging.DEBUG)
+    logger.debug("DEBUG MODE ENABLED")
+
 TRUSTED_NUMBERS = os.getenv("TRUSTED_NUMBERS", "").split(",")
 HERMES_API_URL = os.getenv("HERMES_API_URL", "http://hermes_core:8642/api/chat")
 HERMES_API_KEY = os.getenv("HERMES_API_KEY")
