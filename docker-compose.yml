@@ -57,6 +57,8 @@ services:
       - WAHA_API_URL=http://waha:3000
       - WAHA_API_KEY=${WAHA_API_KEY}
       - DEBUG_MODE=true
+    volumes:
+      - hermes_data:/opt/data
     depends_on:
       - hermes-agent
       - waha
