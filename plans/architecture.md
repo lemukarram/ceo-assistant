@@ -17,6 +17,15 @@ Hermes comes with a massive library of pre-built tools.
 - **Execution:** When Hermes decides a tool is needed (e.g., querying a database), it formats a JSON payload matching the tool's schema.
 - **Security:** Tools like SSH or executing local Python scripts run within the container's boundaries. It is highly recommended to provide Hermes with *read-only* database credentials unless writing data is strictly required.
 
-## 4. UI Layer
-- The system exposes an administrative and chat dashboard natively on port `9119`.
-- The core API runs on port `8642`, allowing local development tools or custom frontends to interact with the agent securely using the `API_SERVER_KEY`.
+## 4. Communication Gateway (WhatsApp)
+- **Engine:** `WAHA` (WhatsApp HTTP API).
+- **Bridge:** A custom FastAPI service (`waha-bridge`) that acts as a secure intermediary between WhatsApp and the Hermes Core.
+- **Features:** Supports image analysis (Vision), voice transcription (Whisper), and document handling.
+
+## 5. UI & Security Layer
+- **Core Dashboard:** Port `9119` (Internal).
+- **Security Proxy:** `Caddy` provides a unified entry point with **Basic Auth** protection for both the Hermes and WAHA dashboards.
+- **Exposed Ports:**
+    - `9120`: Secure Hermes Dashboard.
+    - `3005`: Secure WAHA Dashboard.
+    - `8642`: Hermes API Gateway.

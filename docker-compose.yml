@@ -5,10 +5,8 @@ services:
     container_name: hermes_core
     command: gateway run
     restart: unless-stopped
-    # No internal 'Caddy' needed - Dokploy handles SSL and domains
     ports:
-      - "9119:9119" # Main UI
-      - "8642:8642" # API
+      - "8642:8642" # Gateway API
     environment:
       - HERMES_DASHBOARD=1
       - HERMES_DASHBOARD_HOST=0.0.0.0
@@ -21,6 +19,7 @@ services:
       - API_SERVER_KEY=${HERMES_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
     volumes:
       - hermes_data:/opt/data
       - ./modern-ui.css:/opt/hermes/custom-style.css:ro
@@ -49,7 +48,6 @@ services:
     build: .
     container_name: loops_waha_bridge
     restart: unless-stopped
-    # Port 8000 remains internal for webhooks
     environment:
       - MASTER_CEO=${MASTER_CEO}
       - HERMES_API_URL=http://hermes_core:8642/v1/chat/completions
@@ -57,9 +55,25 @@ services:
       - WAHA_API_URL=http://waha:3000
       - WAHA_API_KEY=${WAHA_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - DEBUG_MODE=true
     volumes:
       - hermes_data:/opt/data
+    depends_on:
+      - hermes-agent
+      - waha
+
+  # 4. Auth Proxy (Caddy)
+  # Even if Dokploy handles SSL, Caddy provides an extra layer of Basic Auth security
+  caddy:
+    image: caddy:2-alpine
+    container_name: loops_auth_proxy
+    restart: unless-stopped
+    ports:
+      - "9120:9120" # Secure Hermes Dashboard
+      - "3005:3005" # Secure WAHA Dashboard
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
       - hermes-agent
       - waha

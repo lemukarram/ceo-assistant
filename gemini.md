@@ -5,7 +5,7 @@ This document serves as the master plan for deploying and configuring the offici
 ## Phase 1: Infrastructure Deployment
 - [x] Prepare Dokploy environment on the VPS. (Local environment prepared with Makefile and .env)
 - [x] Create a new Docker Compose application in Dokploy. (docker-compose.yml ready in plans/)
-- [x] Configure environment variables (Gemini API, OpenAI API, JWT secrets). (.env.example and setup_env.py implemented)
+- [x] Configure environment variables (Gemini API, OpenAI API, OpenRouter API, JWT secrets). (.env.example and setup_env.py implemented)
 - [x] Deploy the `nousresearch/hermes-agent:latest` gateway stack. (Successfully deployed locally via Docker)
 - [x] Verify access to the built-in Web UI dashboard on port `9119`. (Dashboard service confirmed running in logs)
 

@@ -1,48 +1,79 @@
-version: '3.8'
-
 services:
-  caddy:
-    image: caddy:2-alpine
-    container_name: loops_auth_proxy
-    restart: unless-stopped
-    ports:
-      - "9119:9119" # Exposed secure port
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-    depends_on:
-      - hermes-agent
-
+  # 1. Hermes Assistant Core
   hermes-agent:
     image: nousresearch/hermes-agent:latest
     container_name: hermes_core
     command: gateway run
     restart: unless-stopped
     ports:
-      - "8642:8642" # Gateway API (internal or API use)
+      - "8642:8642" # Gateway API
     environment:
-      # Expose the built-in admin dashboard
       - HERMES_DASHBOARD=1
       - HERMES_DASHBOARD_HOST=0.0.0.0
       - HERMES_DASHBOARD_PORT=9119
       - HERMES_DASHBOARD_INSECURE=true
-      - HERMES_DASHBOARD_TUI=1 # Enables the Chat/TUI tab in the dashboard
-      
-      # Secure the API Gateway
+      - HERMES_DASHBOARD_TUI=1
+      - HERMES_SYSTEM_INSTRUCTIONS_PATH=/opt/data/SOUL.md
       - API_SERVER_ENABLED=true
       - API_SERVER_HOST=0.0.0.0
-      - API_SERVER_KEY=${HERMES_API_KEY} # Set this in Dokploy env vars (e.g., a strong random string)
-      
-      # Model API Keys
+      - API_SERVER_KEY=${HERMES_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      
-      # Optional: Telegram Integration
-      # - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     volumes:
       - hermes_data:/opt/data
       - ./modern-ui.css:/opt/hermes/custom-style.css:ro
       - ./rebrand.sh:/etc/cont-init.d/00-rebrand:ro
       - ./SOUL.md:/opt/data/SOUL.md:ro
+
+  # 2. WhatsApp Gateway (WAHA)
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: loops_whatsapp_gw
+    restart: unless-stopped
+    ports:
+      - "3007:3000" # WAHA Dashboard
+    environment:
+      - WHATSAPP_HOOK_URL=http://waha-bridge:8000/webhook/whatsapp
+      - WHATSAPP_HOOK_EVENTS=*
+      - PORT=3000
+      - WAHA_LOG_LEVEL=trace
+      - WAHA_LOG_FORMAT=JSON
+      - WAHA_DASHBOARD_USERNAME=admin
+      - WAHA_DASHBOARD_PASSWORD=LoopsAdmin2026
+      - WHATSAPP_API_KEY=${WAHA_API_KEY}
+
+  # 3. FastAPI Bridge
+  waha-bridge:
+    build: ..
+    container_name: loops_waha_bridge
+    restart: unless-stopped
+    environment:
+      - MASTER_CEO=${MASTER_CEO}
+      - HERMES_API_URL=http://hermes_core:8642/v1/chat/completions
+      - HERMES_API_KEY=${HERMES_API_KEY}
+      - WAHA_API_URL=http://waha:3000
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEBUG_MODE=true
+    volumes:
+      - hermes_data:/opt/data
+    depends_on:
+      - hermes-agent
+      - waha
+
+  # 4. Auth Proxy (Caddy)
+  caddy:
+    image: caddy:2-alpine
+    container_name: loops_auth_proxy
+    restart: unless-stopped
+    ports:
+      - "9120:9120" # Secure Hermes Dashboard
+      - "3005:3005" # Secure WAHA Dashboard
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - hermes-agent
+      - waha
 
 volumes:
   hermes_data:

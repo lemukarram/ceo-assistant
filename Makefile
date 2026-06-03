@@ -10,19 +10,19 @@ endif
 all: up
 
 up:
-	docker-compose -f plans/docker-compose.yml up -d
+	docker-compose up -d
 
 down:
-	docker-compose -f plans/docker-compose.yml down
+	docker-compose down
 
 restart:
-	docker-compose -f plans/docker-compose.yml restart
+	docker-compose restart
 
 logs:
-	docker-compose -f plans/docker-compose.yml logs -f
+	docker-compose logs -f
 
 ps:
-	docker-compose -f plans/docker-compose.yml ps
+	docker-compose ps
 
 clean:
-	docker-compose -f plans/docker-compose.yml down -v
+	docker-compose down -v
