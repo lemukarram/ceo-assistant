@@ -19,7 +19,7 @@ app = FastAPI(title="WhatsApp Media & Dynamic Admin Bridge")
 
 # --- Configuration ---
 # MASTER_CEO is the permanent admin number from .env
-MASTER_CEO = os.getenv("MASTER_CEO", "").strip()
+MASTER_CEO = os.getenv("MASTER_CEO", "").strip().replace("+", "")
 WAHA_API_URL = os.getenv("WAHA_API_URL", "http://waha:3000")
 WAHA_API_KEY = os.getenv("WAHA_API_KEY", "")
 HERMES_API_URL = os.getenv("HERMES_API_URL", "http://hermes_core:8642/v1/chat/completions")
@@ -38,8 +38,17 @@ processed_message_ids = set()
 
 # --- Dynamic Trust Management ---
 def load_trusted_numbers():
-    """Loads trusted numbers from JSON file."""
+    """Loads trusted numbers from environment and JSON file."""
     trusted = {MASTER_CEO} if MASTER_CEO else set()
+    
+    # Load from TRUSTED_NUMBERS env var (comma-separated)
+    env_trusted = os.getenv("TRUSTED_NUMBERS", "")
+    if env_trusted:
+        for num in env_trusted.split(","):
+            clean_num = num.strip().replace("+", "")
+            if clean_num:
+                trusted.add(clean_num)
+
     if os.path.exists(TRUSTED_DB_PATH):
         try:
             with open(TRUSTED_DB_PATH, "r") as f:
