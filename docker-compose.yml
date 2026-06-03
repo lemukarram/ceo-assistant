@@ -7,6 +7,7 @@ services:
     restart: unless-stopped
     ports:
       - "8642:8642" # Gateway API
+      - "9119:9119" # Dashboard UI (Direct)
     environment:
       - HERMES_DASHBOARD=1
       - HERMES_DASHBOARD_HOST=0.0.0.0
