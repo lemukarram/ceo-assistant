@@ -71,6 +71,25 @@ def save_trusted_numbers(numbers):
 # Initial load
 TRUSTED_LIST = load_trusted_numbers()
 
+async def get_waha_chat_id(phone_number: str):
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {"X-Api-Key": WAHA_API_KEY} if WAHA_API_KEY else {}
+            res = await client.get(
+                f"{WAHA_API_URL}/api/contacts/check-exists",
+                params={"phone": phone_number, "session": "default"},
+                headers=headers,
+                timeout=10.0
+            )
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("numberExists") and data.get("chatId"):
+                    return data.get("chatId")
+    except Exception as e:
+        logger.error(f"Error checking WAHA contacts: {e}")
+    # Fallback
+    return f"{phone_number}@c.us" if "@" not in phone_number else phone_number
+
 @app.post("/webhook/whatsapp")
 async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     global TRUSTED_LIST
@@ -99,15 +118,22 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         if from_number == MASTER_CEO and body.startswith("/"):
             logger.info(f"Admin command from CEO: {body}")
             if body.startswith("/add "):
-                new_num = body.replace("/add ", "").strip().replace("+", "")
-                TRUSTED_LIST.add(new_num)
+                raw_num = body.replace("/add ", "").strip().replace("+", "")
+                
+                # Fetch correct ID from WAHA (handles LID or alternative formats)
+                resolved_chat_id = await get_waha_chat_id(raw_num)
+                clean_id = resolved_chat_id.split("@")[0]
+                
+                # Add both the internal ID and raw number just to be safe
+                TRUSTED_LIST.add(clean_id)
+                TRUSTED_LIST.add(raw_num)
                 save_trusted_numbers(TRUSTED_LIST)
-                background_tasks.add_task(send_to_whatsapp_simple, from_chat, f"✅ Added {new_num} to trusted list.")
+                
+                background_tasks.add_task(send_to_whatsapp_simple, from_chat, f"✅ Added {raw_num} (ID: {clean_id}) to trusted list.")
                 
                 # Send greeting to the newly added number
-                new_chat_id = f"{new_num}@c.us" if "@" not in new_num else new_num
                 greeting_msg = "Hello! You have been granted access to LOOPS CA. How can I assist you today?"
-                background_tasks.add_task(send_to_whatsapp_simple, new_chat_id, greeting_msg)
+                background_tasks.add_task(send_to_whatsapp_simple, resolved_chat_id, greeting_msg)
                 
                 return {"status": "admin_command_executed"}
             
