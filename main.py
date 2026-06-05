@@ -103,6 +103,12 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
                 TRUSTED_LIST.add(new_num)
                 save_trusted_numbers(TRUSTED_LIST)
                 background_tasks.add_task(send_to_whatsapp_simple, from_chat, f"✅ Added {new_num} to trusted list.")
+                
+                # Send greeting to the newly added number
+                new_chat_id = f"{new_num}@c.us" if "@" not in new_num else new_num
+                greeting_msg = "Hello! You have been granted access to LOOPS CA. How can I assist you today?"
+                background_tasks.add_task(send_to_whatsapp_simple, new_chat_id, greeting_msg)
+                
                 return {"status": "admin_command_executed"}
             
             elif body.startswith("/remove "):
