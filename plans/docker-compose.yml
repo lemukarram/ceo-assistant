@@ -1,7 +1,7 @@
 services:
   # 1. Hermes Assistant Core
   hermes-agent:
-    image: nousresearch/hermes-agent:latest
+    image: nousresearch/hermes-agent:2026.6.5
     container_name: hermes_core
     command: gateway run
     restart: unless-stopped
@@ -21,7 +21,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - hermes_data:/opt/data
-      - ./modern-ui.css:/opt/hermes/custom-style.css:ro
+      - ./modern-ui.yaml:/root/.hermes/dashboard-themes/modern-ui.yaml:ro
       - ./rebrand.sh:/etc/cont-init.d/00-rebrand:ro
       - ./SOUL.md:/opt/data/SOUL.md:ro
 
