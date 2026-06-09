@@ -35,4 +35,4 @@ The CEO can manage who has access to your WhatsApp interface using specific comm
 
 ## Websites [access with ssh]
 
-- compositeengineer: ssh -t -p 65002 u542999429@88.223.84.8 "cd domains/compositeengineer.online/public_html && bash -l"
+- compositeengineer: ssh -i /opt/data/home/.ssh/id_ed25519 -t -p 65002 u542999429@88.223.84.8 "cd domains/compositeengineer.online/public_html && bash -l"
