@@ -269,6 +269,7 @@ async def process_and_reply(chat_id: str, user_message: str, media_info: dict = 
                 if os.path.exists(path):
                     mime, _ = mimetypes.guess_type(path)
                     m_type = "image" if mime and mime.startswith("image/") else "document"
+                    logger.info(f"Sending {m_type} to WhatsApp: {path} (Mime: {mime})")
                     await send_to_whatsapp_full(client, chat_id, m_type, {"path": path, "filename": os.path.basename(path)})
                 else:
                     logger.warning(f"Agent attempted to send missing file: {path}")
@@ -285,7 +286,8 @@ async def send_to_whatsapp_full(client, chat_id: str, msg_type: str, data: dict)
         payload = {"chatId": chat_id, "session": "default"}
         if msg_type == "text": payload["text"] = data["text"]
         else:
-            url = f"{WAHA_API_URL}/api/sendImage" if msg_type == "image" else f"{WAHA_API_URL}/api/sendDocument"
+            # WAHA uses /api/sendImage for images and /api/sendFile for other documents
+            url = f"{WAHA_API_URL}/api/sendImage" if msg_type == "image" else f"{WAHA_API_URL}/api/sendFile"
             mime_type = mimetypes.guess_type(data["path"])[0] or "application/octet-stream"
             filename = data.get("filename", os.path.basename(data["path"]))
             with open(data["path"], "rb") as f:
