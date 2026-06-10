@@ -36,6 +36,9 @@ os.makedirs(MEDIA_DIR, exist_ok=True)
 # In-memory deduplication
 processed_message_ids = set()
 
+# In-memory conversational context (chat_id -> list of messages)
+chat_history = {}
+
 # --- Dynamic Trust Management ---
 def load_trusted_numbers():
     """Loads trusted numbers from environment and JSON file."""
@@ -219,8 +222,22 @@ async def process_and_reply(chat_id: str, user_message: str, media_info: dict = 
 
             if user_message: content.append({"type": "text", "text": user_message})
 
-            h_res = await client.post(HERMES_API_URL, headers={"Authorization": f"Bearer {HERMES_API_KEY}"}, json={"model": "hermes-agent", "messages": [{"role": "user", "content": content}], "stream": False}, timeout=150.0)
+            # Retrieve and update conversation history
+            if chat_id not in chat_history:
+                chat_history[chat_id] = []
+            
+            chat_history[chat_id].append({"role": "user", "content": content})
+            
+            # Keep history bounded (e.g., last 3 messages to avoid token bloat)
+            if len(chat_history[chat_id]) > 3:
+                chat_history[chat_id] = chat_history[chat_id][-3:]
+
+            h_res = await client.post(HERMES_API_URL, headers={"Authorization": f"Bearer {HERMES_API_KEY}"}, json={"model": "hermes-agent", "messages": chat_history[chat_id], "stream": False}, timeout=150.0)
             reply_text = h_res.json().get("choices", [{}])[0].get("message", {}).get("content", "") if h_res.status_code == 200 else "⚠️ AI Error."
+
+            # Save the assistant's reply back to history
+            if h_res.status_code == 200 and reply_text:
+                chat_history[chat_id].append({"role": "assistant", "content": reply_text})
 
             # Explicit Outbound Media Protocol Parsing
             media_to_send = []
