@@ -286,13 +286,20 @@ async def send_to_whatsapp_full(client, chat_id: str, msg_type: str, data: dict)
         if msg_type == "text": payload["text"] = data["text"]
         else:
             url = f"{WAHA_API_URL}/api/sendImage" if msg_type == "image" else f"{WAHA_API_URL}/api/sendDocument"
+            mime_type = mimetypes.guess_type(data["path"])[0] or "application/octet-stream"
+            filename = data.get("filename", os.path.basename(data["path"]))
             with open(data["path"], "rb") as f:
-                payload["file"] = f"data:{mimetypes.guess_type(data['path'])[0]};base64," + base64.b64encode(f.read()).decode('utf-8')
-                if msg_type == "document": payload["filename"] = data.get("filename", "document")
+                payload["file"] = {
+                    "mimetype": mime_type,
+                    "filename": filename,
+                    "data": base64.b64encode(f.read()).decode('utf-8')
+                }
         
         headers = {"Content-Type": "application/json"}
         if WAHA_API_KEY: headers["X-Api-Key"] = WAHA_API_KEY
-        await client.post(url, json=payload, headers=headers)
+        res = await client.post(url, json=payload, headers=headers)
+        if res.status_code >= 400:
+            logger.error(f"WAHA API Error ({res.status_code}): {res.text}")
     except Exception as e: logger.error(f"WhatsApp Error: {e}")
 
 if __name__ == "__main__":
