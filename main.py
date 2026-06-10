@@ -192,6 +192,7 @@ async def transcribe_audio(audio_data: bytes, mimetype: str):
 
 async def process_and_reply(chat_id: str, user_message: str, media_info: dict = None, is_voice: bool = False):
     try:
+        import time
         async with httpx.AsyncClient() as client:
             content = []
             if media_info:
@@ -199,29 +200,48 @@ async def process_and_reply(chat_id: str, user_message: str, media_info: dict = 
                 mimetype = media_info.get("mimetype", "")
                 media_data = await download_media(media_url)
                 if media_data:
+                    # 1. ALWAYS Save file to Shared Volume (Dual-Context)
+                    ext = mimetypes.guess_extension(mimetype) or ".bin"
+                    filename = media_info.get("filename") or f"incoming_{int(time.time())}{ext}"
+                    file_path = os.path.join(MEDIA_DIR, filename)
+                    with open(file_path, "wb") as f: f.write(media_data)
+
                     if is_voice:
                         transcription = await transcribe_audio(media_data, mimetype)
                         user_message = f"{user_message} {transcription}".strip()
                     elif mimetype.startswith("image/"):
+                        # 2. Images: Send Base64 (Vision) AND Local Path (Tool capability)
                         content.append({"type": "image_url", "image_url": {"url": f"data:{mimetype};base64,{base64.b64encode(media_data).decode('utf-8')}"}})
+                        user_message = f"{user_message}\n[System Note: Image also saved locally at {file_path} for script/tool processing]".strip()
                     else:
-                        filename = media_info.get("filename") or f"incoming_{int(client._transport._pool.time())}"
-                        file_path = os.path.join(MEDIA_DIR, filename)
-                        with open(file_path, "wb") as f: f.write(media_data)
-                        user_message = f"{user_message}\n[Document available at: {file_path}]".strip()
+                        # 3. Standard Docs
+                        user_message = f"{user_message}\n[System Note: Document saved locally at {file_path}]".strip()
 
             if user_message: content.append({"type": "text", "text": user_message})
 
             h_res = await client.post(HERMES_API_URL, headers={"Authorization": f"Bearer {HERMES_API_KEY}"}, json={"model": "hermes-agent", "messages": [{"role": "user", "content": content}], "stream": False}, timeout=150.0)
             reply_text = h_res.json().get("choices", [{}])[0].get("message", {}).get("content", "") if h_res.status_code == 200 else "⚠️ AI Error."
 
-            file_paths = re.findall(r'(/opt/data/[^\s,]+\.[a-zA-Z0-9]+)', reply_text)
-            await send_to_whatsapp_full(client, chat_id, "text", {"text": reply_text})
-            for path in file_paths:
+            # Explicit Outbound Media Protocol Parsing
+            media_to_send = []
+            def extract_media_tags(match):
+                media_to_send.append(match.group(1).strip())
+                return "" # Remove the tag from the final message
+            
+            clean_reply = re.sub(r'<send_media>(.*?)</send_media>', extract_media_tags, reply_text)
+            clean_reply = clean_reply.strip()
+
+            if clean_reply:
+                await send_to_whatsapp_full(client, chat_id, "text", {"text": clean_reply})
+            
+            for path in media_to_send:
                 if os.path.exists(path):
                     mime, _ = mimetypes.guess_type(path)
                     m_type = "image" if mime and mime.startswith("image/") else "document"
                     await send_to_whatsapp_full(client, chat_id, m_type, {"path": path, "filename": os.path.basename(path)})
+                else:
+                    logger.warning(f"Agent attempted to send missing file: {path}")
+
     except Exception as e: logger.error(f"Processing Crash: {e}")
 
 async def send_to_whatsapp_simple(chat_id: str, text: str):
