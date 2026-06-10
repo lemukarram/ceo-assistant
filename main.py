@@ -117,6 +117,8 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         from_number = from_chat.split("@")[0]
         body = payload.get("body", "").strip()
 
+        logger.info(f"INCOMING WHATSAPP MESSAGE FROM {from_number}: {body}")
+
         # --- ADMIN COMMAND LOGIC ---
         if from_number == MASTER_CEO and body.startswith("/"):
             logger.info(f"Admin command from CEO: {body}")
@@ -235,6 +237,8 @@ async def process_and_reply(chat_id: str, user_message: str, media_info: dict = 
             h_res = await client.post(HERMES_API_URL, headers={"Authorization": f"Bearer {HERMES_API_KEY}"}, json={"model": "hermes-agent", "messages": chat_history[chat_id], "stream": False}, timeout=150.0)
             reply_text = h_res.json().get("choices", [{}])[0].get("message", {}).get("content", "") if h_res.status_code == 200 else "⚠️ AI Error."
 
+            logger.info(f"RAW HERMES REPLY: {reply_text}")
+
             # Save the assistant's reply back to history
             if h_res.status_code == 200 and reply_text:
                 chat_history[chat_id].append({"role": "assistant", "content": reply_text})
@@ -246,6 +250,16 @@ async def process_and_reply(chat_id: str, user_message: str, media_info: dict = 
                 return "" # Remove the tag from the final message
             
             clean_reply = re.sub(r'<send_media>(.*?)</send_media>', extract_media_tags, reply_text)
+            
+            # Also catch markdown images/links and raw paths pointing to /opt/data/
+            for path_match in re.finditer(r'(/opt/data/[a-zA-Z0-9_./-]+)', clean_reply):
+                path = path_match.group(1)
+                if path not in media_to_send and os.path.exists(path) and os.path.isfile(path):
+                    media_to_send.append(path)
+            
+            # Clean up empty markdown image tags that might be left behind if we just keep the path
+            clean_reply = re.sub(r'!\[.*?\]\((/opt/data/.*?)\)', '', clean_reply)
+            
             clean_reply = clean_reply.strip()
 
             if clean_reply:
