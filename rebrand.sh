@@ -24,4 +24,9 @@ You are LOOPS CA, the Chief Assistant.
 EOF
 fi
 
+# 3. Install missing Image Processing Dependencies
+echo "Installing Python image processing libraries..."
+# Use pip to install libraries Hermes might need when using its Terminal tool
+pip install Pillow matplotlib requests --quiet || echo "Warning: Failed to install pip dependencies"
+
 echo "Rebranding complete."
