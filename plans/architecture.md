@@ -18,14 +18,14 @@ Hermes comes with a massive library of pre-built tools.
 - **Security:** Tools like SSH or executing local Python scripts run within the container's boundaries. It is highly recommended to provide Hermes with *read-only* database credentials unless writing data is strictly required.
 
 ## 4. Communication Gateway (WhatsApp)
-- **Engine:** `WAHA` (WhatsApp HTTP API).
-- **Bridge:** A custom FastAPI service (`waha-bridge`) that acts as a secure intermediary between WhatsApp and the Hermes Core.
-- **Features:** Supports image analysis (Vision), voice transcription (Whisper), and document handling.
+- **Engine:** `Evolution API` (Open-source multi-device WhatsApp API).
+- **Bridge:** A custom FastAPI service (`evolution-bridge`) that acts as a secure intermediary between Evolution API and the Hermes Core.
+- **Features:** Supports image analysis (Vision), voice transcription (Whisper), and document handling natively via Base64.
 
 ## 5. UI & Security Layer
 - **Core Dashboard:** Port `9119` (Internal).
-- **Security Proxy:** `Caddy` provides a unified entry point with **Basic Auth** protection for both the Hermes and WAHA dashboards.
+- **Security Proxy:** `Caddy` provides a unified entry point with **Basic Auth** protection for both the Hermes and Evolution Manager dashboards.
 - **Exposed Ports:**
     - `9120`: Secure Hermes Dashboard.
-    - `3005`: Secure WAHA Dashboard.
+    - `3005`: Secure Evolution Manager Dashboard.
     - `8642`: Hermes API Gateway.

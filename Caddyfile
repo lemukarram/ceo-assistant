@@ -21,5 +21,5 @@
 
 # WhatsApp Webhook (Internal)
 :8005 {
-    reverse_proxy waha-bridge:8000
+    reverse_proxy evolution-bridge:8000
 }

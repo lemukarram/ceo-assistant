@@ -52,5 +52,5 @@ I've hardened the TRUSTED_NUMBERS check and added
      secure logging. Only your approved phones can trigger the assistant.
 
      Port 9119: For the Admin Dashboard.
-       * Port 8000: For the WhatsApp Webhook (WAHA will point its webhooks
+       * Port 8000: For the WhatsApp Webhook (Evolution API will point its webhooks
          here).

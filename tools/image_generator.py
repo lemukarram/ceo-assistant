@@ -22,7 +22,7 @@ def generate_image(prompt: str, output_name: str = None):
             if not output_name.lower().endswith(('.jpg', '.jpeg', '.png')):
                 output_name += ".jpg"
                 
-            # Save to the shared media directory so the WAHA bridge can send it
+            # Save to the shared media directory so the Evolution bridge can send it
             output_dir = "/opt/data/media"
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, output_name)

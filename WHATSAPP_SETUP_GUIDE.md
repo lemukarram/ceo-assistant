@@ -1,13 +1,13 @@
-# 📱 LOOPS CA: WhatsApp Webhook & WAHA Setup Guide
+# 📱 LOOPS CA: WhatsApp Webhook & Evolution API Setup Guide
 
-This guide will walk you through connecting your WhatsApp account to LOOPS CA.
+This guide will walk you through connecting your WhatsApp account to LOOPS CA via the new Evolution API Manager.
 
 ---
 
-## 🔐 1. Accessing the WAHA Dashboard
-I have configured the system to expose the WAHA dashboard through our secure proxy.
+## 🔐 1. Accessing the Evolution Manager Dashboard
+I have configured the system to expose the Evolution API Manager through our secure proxy.
 
-*   **URL:** `http://[YOUR_SERVER_IP]:3007`
+*   **URL:** `http://[YOUR_SERVER_IP]:3005`
 *   **Username:** `admin`
 *   **Password:** `LoopsAdmin2026`
 *(Note: I've added a security layer so you use the same credentials as the main dashboard).*
@@ -15,33 +15,33 @@ I have configured the system to expose the WAHA dashboard through our secure pro
 ---
 
 ## 🚀 2. Setting up the WhatsApp Session
-1.  Open the WAHA Dashboard.
-2.  Click on **"Sessions"** in the sidebar.
-3.  If no session exists, click **"Add Session"**.
-    *   **Name:** `default` (This matches our bridge config).
-4.  Once the session is "Starting," click **"Scan QR Code"**.
+1.  Open the Evolution Manager Dashboard.
+2.  Navigate to **Instances** in the sidebar.
+3.  Click on **Add Instance**.
+    *   **Instance Name:** `loops` (This must match the EVOLUTION_INSTANCE_NAME in the environment variables).
+    *   **Token:** (Optional, or matching your API key settings).
+4.  Once the instance is created, click to view its QR Code.
 5.  Open WhatsApp on your phone > **Linked Devices** > **Link a Device** and scan the code.
 
 ---
 
 ## 🔗 3. Configuring the Webhook
-Our system is designed to handle the webhook automatically, but here is how to verify it in the WAHA Dashboard:
+Our Docker Compose configuration automatically injects the global webhook (`WEBHOOK_GLOBAL_URL=http://evolution-bridge:8000/webhook/whatsapp`), so you typically don't need to do this manually. 
 
-1.  Go to the **"Webhooks"** tab.
-2.  Ensure there is a webhook pointing to:
-    *   **URL:** `http://waha-bridge:8000/webhook/whatsapp`
-    *   **Events:** `message.upsert`
-3.  This is already set in your `docker-compose.yml`, so it should be active as soon as the session is connected.
+However, to verify it in the Evolution Manager:
+1.  Go to your Instance settings or Global Webhook settings.
+2.  Ensure the Webhook URL is pointing to your bridge.
+3.  Ensure the enabled event is `MESSAGES_UPSERT` and that **Base64** is enabled (this is required so the AI can receive media/images directly).
 
 ---
 
 ## ✅ 4. Final Verification
-1.  Ensure you have added your phone number to the **`TRUSTED_NUMBERS`** environment variable in Dokploy.
-2.  Send a message (e.g., "Hi LOOPS CA") from your phone to the number you linked in WAHA.
+1.  Ensure you have added your phone number to the **`TRUSTED_NUMBERS`** or **`MASTER_CEO`** environment variables.
+2.  Send a message (e.g., "Hi LOOPS CA") from your phone to the number you linked in Evolution API.
 3.  **LOOPS CA** should respond back to you on WhatsApp!
 
 ---
 
 ## 🛠 Troubleshooting
-*   **Not responding?** Check the logs in Dokploy for the `loops_waha_bridge` container. It will show if it's rejecting the number or if there is a connection error with the AI core.
-*   **401 Error?** Ensure you have selected **Gemini 1.5 Pro** as your default model in the main LOOPS CA dashboard (port 9119).
+*   **Not responding?** Check the logs in Dokploy for the `loops_evolution_bridge` container. It will show if it's rejecting the number or if there is a connection error with the AI core.
+*   **401 Error?** Ensure your `EVOLUTION_API_KEY` is matching across your `docker-compose.yml` environment blocks.

@@ -43,7 +43,7 @@ services:
       - CACHE_REDIS_URI=redis://evolution-redis:6379/6
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@evolution-postgres:5432/${POSTGRES_DATABASE}?schema=evolution_api
-      - WEBHOOK_GLOBAL_URL=http://waha-bridge:8000/webhook/whatsapp
+      - WEBHOOK_GLOBAL_URL=http://evolution-bridge:8000/webhook/whatsapp
       - WEBHOOK_GLOBAL_ENABLED=true
       - WEBHOOK_GLOBAL_EVENTS=MESSAGES_UPSERT
       - WEBHOOK_BASE64=true
@@ -84,9 +84,9 @@ services:
       - redis_data:/data
 
   # 6. FastAPI Bridge
-  waha-bridge:
+  evolution-bridge:
     build: ..
-    container_name: loops_waha_bridge
+    container_name: loops_evolution_bridge
     restart: unless-stopped
     environment:
       - MASTER_CEO=${MASTER_CEO}
@@ -110,7 +110,7 @@ services:
     restart: unless-stopped
     ports:
       - "9120:9120" # Secure Hermes Dashboard
-      - "3005:3005" # Secure Evolution Dashboard (was WAHA)
+      - "3005:3005" # Secure Evolution Dashboard
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
@@ -128,3 +128,6 @@ volumes:
     driver: local
   redis_data:
     driver: local
+ocal
+  driver: local
+ocal
