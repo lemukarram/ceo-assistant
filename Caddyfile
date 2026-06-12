@@ -10,9 +10,9 @@
     }
 }
 
-# WAHA Dashboard (Unique Port)
+# Evolution Manager Dashboard (Unique Port)
 :3005 {
-    reverse_proxy waha:3000
+    reverse_proxy evolution-manager:80
     
     basic_auth / {
         admin $2b$12$09piaprkzL5l5eqQp3nVsOIBUaCyq18raTYtPHy6e2WdnpM6AmQiy
