@@ -83,7 +83,7 @@ services:
 
   # 6. FastAPI Bridge
   evolution-bridge:
-    build: ..
+    build: .
     container_name: loops_evolution_bridge
     restart: unless-stopped
     environment:
