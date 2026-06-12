@@ -56,8 +56,6 @@ services:
     image: evoapicloud/evolution-manager:latest
     container_name: loops_evolution_manager
     restart: unless-stopped
-    ports:
-      - "3005:80" # Evolution Manager Dashboard
     environment:
       - EVOLUTION_API_URL=http://evolution-api:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
@@ -128,6 +126,3 @@ volumes:
     driver: local
   redis_data:
     driver: local
-ocal
-  driver: local
-ocal
