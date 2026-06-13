@@ -242,23 +242,38 @@ async def process_and_reply(chat_id: str, user_message: str, media_obj: dict = N
                 media_to_send.append(match.group(1).strip())
                 return ""
             
-            clean_reply = re.sub(r'<send_media>(.*?)</send_media>', extract_media_tags, reply_text)
+            # 1. Handle explicit <send_media> tags
+            clean_reply = re.sub(r'<send_media>(.*?)</send_media>', extract_media_tags, reply_text, flags=re.IGNORECASE)
             
-            for path_match in re.finditer(r'(/opt/data/[a-zA-Z0-9_./-]+)', clean_reply):
-                path = path_match.group(1)
-                if path not in media_to_send and os.path.exists(path) and os.path.isfile(path):
+            # 2. Handle raw file paths in text (auto-detect /opt/data/...)
+            # We copy them to a list and also strip them from the clean_reply to avoid cluttering the chat
+            raw_paths = re.findall(r'(/opt/data/[a-zA-Z0-9_./-]+)', clean_reply)
+            for path in raw_paths:
+                if path not in media_to_send:
                     media_to_send.append(path)
+                # Remove the path from the text message so the CEO sees a clean reply
+                clean_reply = clean_reply.replace(path, "").strip()
             
+            # 3. Handle markdown images (already handled but ensuring it's stripped)
             clean_reply = re.sub(r'!\[.*?\]\((/opt/data/.*?)\)', '', clean_reply).strip()
+
+            # 4. Process and send all detected media
+            public_urls = []
+            for path in media_to_send:
+                if os.path.exists(path) and os.path.isfile(path):
+                    url = await send_to_whatsapp_media(chat_id, path, instance_name)
+                    if url:
+                        public_urls.append(url)
+                else:
+                    logger.warning(f"Agent attempted to send missing file: {path}")
+
+            # 5. Append public URLs to the clean reply for easy access
+            if public_urls:
+                links_text = "\n\n🔗 *Public Access Links:*\n" + "\n".join([f"- {u}" for u in public_urls])
+                clean_reply += links_text
 
             if clean_reply:
                 await send_to_whatsapp_simple(chat_id, clean_reply, instance_name)
-            
-            for path in media_to_send:
-                if os.path.exists(path):
-                    await send_to_whatsapp_media(chat_id, path, instance_name)
-                else:
-                    logger.warning(f"Agent attempted to send missing file: {path}")
 
     except Exception as e: logger.error(f"Processing Crash: {e}")
 
@@ -318,7 +333,11 @@ async def send_to_whatsapp_media(chat_id: str, file_path: str, instance_name: st
             res = await client.post(url, json=payload, headers=headers)
             if res.status_code >= 400:
                 logger.error(f"EVO API Media Error ({res.status_code}): {res.text}")
-    except Exception as e: logger.error(f"WhatsApp Media Error: {e}")
+                return None
+            return media_url
+    except Exception as e: 
+        logger.error(f"WhatsApp Media Error: {e}")
+        return None
 
 if __name__ == "__main__":
     import uvicorn
