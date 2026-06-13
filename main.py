@@ -35,6 +35,11 @@ MEDIA_DIR = os.path.join(DATA_DIR, "media")
 TRUSTED_DB_PATH = os.path.join(DATA_DIR, "trusted_numbers.json")
 
 os.makedirs(MEDIA_DIR, exist_ok=True)
+for d in [DATA_DIR, MEDIA_DIR]:
+    try:
+        os.chmod(d, 0o777)
+    except Exception as e:
+        logger.warning(f"Could not set world-writable permissions on {d}: {e}")
 
 # Mount the media directory so Evolution API can fetch files via a clear public URL
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")

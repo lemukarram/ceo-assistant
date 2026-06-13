@@ -36,7 +36,8 @@ PDF_SCHEMA = {
         "type": "object",
         "properties": {
              "client_name": {"type": "string", "description": "The name of the client or company"},
-             "amount": {"type": "number", "description": "The total price in SAR"}
+             "amount": {"type": "number", "description": "The total price in SAR"},
+             "file_name": {"type": "string", "description": "Optional specific file name, e.g., quote_ahmed.pdf"}
         },
         "required": ["client_name", "amount"]
     }
@@ -46,5 +47,9 @@ registry.register(
     name="generate_pdf_quote",
     toolset="custom",
     schema=PDF_SCHEMA,
-    handler=lambda args, **kw: generate_pdf(args.get("client_name", "Unknown"), args.get("amount", 0))
+    handler=lambda args, **kw: generate_pdf(
+        args.get("client_name", "Unknown"), 
+        args.get("amount", 0), 
+        args.get("file_name") if args.get("file_name") and str(args.get("file_name")).startswith("/opt/data/") else f"/opt/data/{args.get('file_name', 'quote.pdf')}"
+    )
 )

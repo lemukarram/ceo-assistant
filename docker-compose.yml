@@ -19,12 +19,14 @@ services:
       - API_SERVER_KEY=${HERMES_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - WHATSAPP_ENABLED=false
+      - MCP_LINEAR_ENABLED=false
     volumes:
       - hermes_data:/opt/data
       - ./modern-ui.yaml:/root/.hermes/dashboard-themes/modern-ui.yaml:ro
       - ./rebrand.sh:/etc/cont-init.d/00-rebrand:ro
       - ./SOUL.md:/opt/data/SOUL.md:ro
-      - ../tools:/opt/hermes/hermes_cli/tools:ro
+      - ./tools:/opt/hermes/hermes_cli/tools:ro
 
   # 2. Evolution API
   evolution-api:
