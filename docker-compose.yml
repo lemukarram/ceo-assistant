@@ -53,7 +53,7 @@ services:
 
   # 3. Evolution Manager (UI)
   evolution-manager:
-    image: evoapicloud/evolution-manager:latest
+    image: evoapicloud/evolution-manager:v2.3.5
     container_name: loops_evolution_manager
     restart: unless-stopped
     environment:

@@ -81,8 +81,10 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         payload = await request.json()
         
         # Evolution API event check
-        if payload.get("event") != "messages.upsert":
+        if payload.get("event") not in ["messages.upsert", "MESSAGES_UPSERT"]:
             return {"status": "ignored_non_message_event"}
+
+        instance_name = payload.get("instance", EVO_INSTANCE)
 
         data = payload.get("data", {})
         key = data.get("key", {})
@@ -104,7 +106,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         body = message.get("conversation") or message.get("extendedTextMessage", {}).get("text") or ""
         body = body.strip()
 
-        logger.info(f"INCOMING WHATSAPP MESSAGE FROM {from_number}: {body}")
+        logger.info(f"INCOMING WHATSAPP MESSAGE FROM {from_number} (Instance: {instance_name}): {body}")
 
         # --- ADMIN COMMAND LOGIC ---
         if from_number == MASTER_CEO and body.startswith("/"):
@@ -114,27 +116,27 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
                 TRUSTED_LIST.add(raw_num)
                 save_trusted_numbers(TRUSTED_LIST)
                 
-                background_tasks.add_task(send_to_whatsapp_simple, remote_jid, f"✅ Added {raw_num} to trusted list.")
+                background_tasks.add_task(send_to_whatsapp_simple, remote_jid, f"✅ Added {raw_num} to trusted list.", instance_name)
                 
                 new_user_jid = f"{raw_num}@s.whatsapp.net"
                 greeting_msg = "Hello! You have been granted access to LOOPS CA. How can I assist you today?"
-                background_tasks.add_task(send_to_whatsapp_simple, new_user_jid, greeting_msg)
+                background_tasks.add_task(send_to_whatsapp_simple, new_user_jid, greeting_msg, instance_name)
                 
                 return {"status": "admin_command_executed"}
             
             elif body.startswith("/remove "):
                 rem_num = body.replace("/remove ", "").strip().replace("+", "")
                 if rem_num == MASTER_CEO:
-                    background_tasks.add_task(send_to_whatsapp_simple, remote_jid, "❌ Cannot remove the Master CEO.")
+                    background_tasks.add_task(send_to_whatsapp_simple, remote_jid, "❌ Cannot remove the Master CEO.", instance_name)
                 else:
                     TRUSTED_LIST.discard(rem_num)
                     save_trusted_numbers(TRUSTED_LIST)
-                    background_tasks.add_task(send_to_whatsapp_simple, remote_jid, f"🗑️ Removed {rem_num} from trusted list.")
+                    background_tasks.add_task(send_to_whatsapp_simple, remote_jid, f"🗑️ Removed {rem_num} from trusted list.", instance_name)
                 return {"status": "admin_command_executed"}
             
             elif body == "/list":
                 msg = "📋 *Trusted Numbers:*\n" + "\n".join([f"- {n}" for n in sorted(TRUSTED_LIST)])
-                background_tasks.add_task(send_to_whatsapp_simple, remote_jid, msg)
+                background_tasks.add_task(send_to_whatsapp_simple, remote_jid, msg, instance_name)
                 return {"status": "admin_command_executed"}
 
         # --- REGULAR MESSAGE LOGIC ---
@@ -153,7 +155,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             if msg_type == "audioMessage":
                 is_voice = True
 
-        background_tasks.add_task(process_and_reply, remote_jid, body, media_obj, base64_data, is_voice)
+        background_tasks.add_task(process_and_reply, remote_jid, body, media_obj, base64_data, is_voice, instance_name)
         return {"status": "success"}
 
     except Exception as e:
@@ -175,7 +177,7 @@ async def transcribe_audio(audio_data: bytes, mimetype: str):
             return res.json().get("text", "") if res.status_code == 200 else "[Transcription error]"
     except Exception: return "[Voice processing error]"
 
-async def process_and_reply(chat_id: str, user_message: str, media_obj: dict = None, base64_data: str = None, is_voice: bool = False):
+async def process_and_reply(chat_id: str, user_message: str, media_obj: dict = None, base64_data: str = None, is_voice: bool = False, instance_name: str = EVO_INSTANCE):
     try:
         async with httpx.AsyncClient() as client:
             content = []
@@ -236,20 +238,20 @@ async def process_and_reply(chat_id: str, user_message: str, media_obj: dict = N
             clean_reply = re.sub(r'!\[.*?\]\((/opt/data/.*?)\)', '', clean_reply).strip()
 
             if clean_reply:
-                await send_to_whatsapp_simple(chat_id, clean_reply)
+                await send_to_whatsapp_simple(chat_id, clean_reply, instance_name)
             
             for path in media_to_send:
                 if os.path.exists(path):
-                    await send_to_whatsapp_media(chat_id, path)
+                    await send_to_whatsapp_media(chat_id, path, instance_name)
                 else:
                     logger.warning(f"Agent attempted to send missing file: {path}")
 
     except Exception as e: logger.error(f"Processing Crash: {e}")
 
-async def send_to_whatsapp_simple(chat_id: str, text: str):
+async def send_to_whatsapp_simple(chat_id: str, text: str, instance_name: str = EVO_INSTANCE):
     try:
         async with httpx.AsyncClient() as client:
-            url = f"{EVO_API_URL}/message/sendText/{EVO_INSTANCE}"
+            url = f"{EVO_API_URL}/message/sendText/{instance_name}"
             payload = {
                 "number": chat_id,
                 "text": text
@@ -261,7 +263,7 @@ async def send_to_whatsapp_simple(chat_id: str, text: str):
                 logger.error(f"EVO API Text Error ({res.status_code}): {res.text}")
     except Exception as e: logger.error(f"WhatsApp Text Error: {e}")
 
-async def send_to_whatsapp_media(chat_id: str, file_path: str):
+async def send_to_whatsapp_media(chat_id: str, file_path: str, instance_name: str = EVO_INSTANCE):
     try:
         mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
         filename = os.path.basename(file_path)
@@ -277,7 +279,7 @@ async def send_to_whatsapp_media(chat_id: str, file_path: str):
         data_uri = f"data:{mime_type};base64,{encoded_media}"
 
         async with httpx.AsyncClient() as client:
-            url = f"{EVO_API_URL}/message/sendMedia/{EVO_INSTANCE}"
+            url = f"{EVO_API_URL}/message/sendMedia/{instance_name}"
             payload = {
                 "number": chat_id,
                 "mediatype": media_type,
