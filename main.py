@@ -7,6 +7,7 @@ import io
 import json
 import time
 from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import httpx
 
@@ -23,6 +24,7 @@ MASTER_CEO = os.getenv("MASTER_CEO", "").strip().replace("+", "")
 EVO_API_URL = os.getenv("EVOLUTION_API_URL", "http://evolution-api:8080").rstrip("/")
 EVO_API_KEY = os.getenv("EVOLUTION_API_KEY", "")
 EVO_INSTANCE = os.getenv("EVOLUTION_INSTANCE_NAME", "loops")
+BASE_URL = os.getenv("BASE_URL", "http://evolution-bridge:8000").rstrip("/")
 HERMES_API_URL = os.getenv("HERMES_API_URL", "http://hermes_core:8642/v1/chat/completions")
 HERMES_API_KEY = os.getenv("HERMES_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -33,6 +35,9 @@ MEDIA_DIR = os.path.join(DATA_DIR, "media")
 TRUSTED_DB_PATH = os.path.join(DATA_DIR, "trusted_numbers.json")
 
 os.makedirs(MEDIA_DIR, exist_ok=True)
+
+# Mount the media directory so Evolution API can fetch files via a clear public URL
+app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 # In-memory deduplication
 processed_message_ids = set()
@@ -263,6 +268,8 @@ async def send_to_whatsapp_simple(chat_id: str, text: str, instance_name: str = 
                 logger.error(f"EVO API Text Error ({res.status_code}): {res.text}")
     except Exception as e: logger.error(f"WhatsApp Text Error: {e}")
 
+import shutil
+
 async def send_to_whatsapp_media(chat_id: str, file_path: str, instance_name: str = EVO_INSTANCE):
     try:
         mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
@@ -273,10 +280,14 @@ async def send_to_whatsapp_media(chat_id: str, file_path: str, instance_name: st
         elif mime_type.startswith("video/"): media_type = "video"
         elif mime_type.startswith("audio/"): media_type = "audio"
 
-        with open(file_path, "rb") as f:
-            encoded_media = base64.b64encode(f.read()).decode('utf-8')
-            
-        data_uri = f"data:{mime_type};base64,{encoded_media}"
+        # Securely expose only the specific file by copying it to the media directory
+        public_file_path = os.path.join(MEDIA_DIR, filename)
+        if os.path.abspath(file_path) != os.path.abspath(public_file_path):
+            shutil.copy2(file_path, public_file_path)
+
+        # Generate the clear public URL
+        # Evolution API downloads this and natively uploads it to WhatsApp's servers.
+        media_url = f"{BASE_URL}/media/{filename}"
 
         async with httpx.AsyncClient() as client:
             url = f"{EVO_API_URL}/message/sendMedia/{instance_name}"
@@ -285,7 +296,7 @@ async def send_to_whatsapp_media(chat_id: str, file_path: str, instance_name: st
                 "mediatype": media_type,
                 "mimetype": mime_type,
                 "fileName": filename,
-                "media": data_uri
+                "media": media_url
             }
             headers = {"Content-Type": "application/json"}
             if EVO_API_KEY: headers["apikey"] = EVO_API_KEY

@@ -93,6 +93,7 @@ services:
       - EVOLUTION_API_URL=http://evolution-api:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - EVOLUTION_INSTANCE_NAME=loops
+      - BASE_URL=${BASE_URL:-http://evolution-bridge:8000}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DEBUG_MODE=true
     volumes:
