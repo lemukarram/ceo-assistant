@@ -27,6 +27,11 @@ services:
       - ./rebrand.sh:/etc/cont-init.d/00-rebrand:ro
       - ./SOUL.md:/opt/data/SOUL.md:ro
       - ./tools:/opt/hermes/hermes_cli/tools:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8642/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # 2. Evolution API
   evolution-api:
@@ -52,6 +57,11 @@ services:
     volumes:
       - evolution_instances:/evolution/instances
       - evolution_store:/evolution/store
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # 3. Evolution Manager (UI)
   evolution-manager:
@@ -73,6 +83,11 @@ services:
       - POSTGRES_DB=${POSTGRES_DATABASE}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME} -d ${POSTGRES_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # 5. Redis for Evolution
   evolution-redis:
@@ -82,6 +97,11 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # 6. FastAPI Bridge
   evolution-bridge:
@@ -101,8 +121,15 @@ services:
     volumes:
       - hermes_data:/opt/data
     depends_on:
-      - hermes-agent
-      - evolution-api
+      hermes-agent:
+        condition: service_healthy
+      evolution-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # 7. Auth Proxy (Caddy)
   caddy:

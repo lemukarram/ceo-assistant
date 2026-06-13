@@ -44,6 +44,10 @@ for d in [DATA_DIR, MEDIA_DIR]:
 # Mount the media directory so Evolution API can fetch files via a clear public URL
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": time.time()}
+
 # In-memory deduplication
 processed_message_ids = set()
 
@@ -289,6 +293,12 @@ async def send_to_whatsapp_media(chat_id: str, file_path: str, instance_name: st
         public_file_path = os.path.join(MEDIA_DIR, filename)
         if os.path.abspath(file_path) != os.path.abspath(public_file_path):
             shutil.copy2(file_path, public_file_path)
+            
+        # Ensure the file is world-readable for the Evolution API to fetch
+        try:
+            os.chmod(public_file_path, 0o644)
+        except:
+            pass
 
         # Generate the clear public URL
         # Evolution API downloads this and natively uploads it to WhatsApp's servers.
